@@ -384,7 +384,7 @@ const std::string g_HNode2TestRest = R"(
         }
       },
 
-      "/hnode2/test/widget": {
+      "/hnode2/test/widgets": {
         "get": {
           "summary": "Return made up widget list.",
           "operationId": "getWidgetList",
@@ -426,7 +426,7 @@ const std::string g_HNode2TestRest = R"(
         }
       },
 
-      "/hnode2/irrigation/widget/{widgetid}": {
+      "/hnode2/test/widgets/{widgetid}": {
         "get": {
           "summary": "Get information about a specific widget - dummy.",
           "operationId": "getWidgetInfo",
