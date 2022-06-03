@@ -178,230 +178,168 @@ HNTestDevice::updateConfig()
 void 
 HNTestDevice::dispatchEP( HNodeDevice *parent, HNOperationData *opData )
 {
-    //HNIDActionRequest action;
-
     std::cout << "HNTestDevice::dispatchEP() - entry" << std::endl;
     std::cout << "  dispatchID: " << opData->getDispatchID() << std::endl;
     std::cout << "  opID: " << opData->getOpID() << std::endl;
     std::cout << "  thread: " << std::this_thread::get_id() << std::endl;
 
     std::string opID = opData->getOpID();
-#if 0
-    // GET "/hnode2/irrigation/status"
+          
+    // GET "/hnode2/test/status"
     if( "getStatus" == opID )
     {
-        action.setType( HNID_AR_TYPE_IRRSTATUS );
-    }
-    // GET "/hnode2/irrigation/switches"
-    else if( "getSwitchList" == opID )
-    {
-        action.setType( HNID_AR_TYPE_SWLIST );
-    }
-    // GET "/hnode2/irrigation/zones"
-    else if( "getZoneList" == opID )
-    {
-        action.setType( HNID_AR_TYPE_ZONELIST );
-    }
-    // GET "/hnode2/irrigation/zones/{zoneid}"
-    else if( "getZoneInfo" == opID )
-    {
-        std::string zoneID;
+        std::cout << "=== Get Status Request ===" << std::endl;
+    
+        // Set response content type
+        opData->responseSetChunkedTransferEncoding( true );
+        opData->responseSetContentType( "application/json" );
 
-        if( opData->getParam( "zoneid", zoneID ) == true )
+        // Create a json status object
+        pjs::Object jsRoot;
+        jsRoot.set( "overallStatus", "OK" );
+
+        // Render response content
+        std::ostream& ostr = opData->responseSend();
+        try{ 
+            pjs::Stringifier::stringify( jsRoot, ostr, 1 ); 
+        } catch( ... ) {
+            std::cout << "ERROR: Exception while serializing comment" << std::endl;
+        }
+            
+        // Request was successful
+        opData->responseSetStatusAndReason( HNR_HTTP_OK );
+    }
+    // GET "/hnode2/test/widgets"
+    else if( "getWidgetList" == opID )
+    {
+        std::cout << "=== Get Widget List Request ===" << std::endl;
+
+        // Set response content type
+        opData->responseSetChunkedTransferEncoding( true );
+        opData->responseSetContentType( "application/json" );
+
+        // Create a json root object
+        pjs::Array jsRoot;
+
+        pjs::Object w1Obj;
+        w1Obj.set( "id", "w1" );
+        w1Obj.set( "color", "red" );
+        jsRoot.add( w1Obj );
+
+        pjs::Object w2Obj;
+        w2Obj.set( "id", "w2" );
+        w2Obj.set( "color", "green" );
+        jsRoot.add( w2Obj );
+
+        pjs::Object w3Obj;
+        w3Obj.set( "id", "w3" );
+        w3Obj.set( "color", "blue" );
+        jsRoot.add( w3Obj );
+          
+        // Render response content
+        std::ostream& ostr = opData->responseSend();
+        try{ 
+            pjs::Stringifier::stringify( jsRoot, ostr, 1 ); 
+        } catch( ... ) {
+            std::cout << "ERROR: Exception while serializing comment" << std::endl;
+        }
+            
+        // Request was successful
+        opData->responseSetStatusAndReason( HNR_HTTP_OK );
+    }
+    // GET "/hnode2/test/widgets/{widgetid}"
+    else if( "getWidgetInfo" == opID )
+    {
+        std::string widgetID;
+
+        if( opData->getParam( "widgetid", widgetID ) == true )
         {
             opData->responseSetStatusAndReason( HNR_HTTP_INTERNAL_SERVER_ERROR );
             opData->responseSend();
             return; 
         }
 
-        action.setType( HNID_AR_TYPE_ZONEINFO );
-        action.setZoneID( zoneID );
-    }
-    // POST "/hnode2/irrigation/zones"
-    else if( "createZone" == opID )
-    {
-        action.setType( HNID_AR_TYPE_ZONECREATE );
+        std::cout << "=== Get Widget Info Request (id: " << widgetID << ") ===" << std::endl;
 
-        std::istream& bodyStream = opData->requestBody();
-        action.decodeZoneUpdate( bodyStream );
+        // Set response content type
+        opData->responseSetChunkedTransferEncoding( true );
+        opData->responseSetContentType( "application/json" );
+        
+        // Create a json root object
+        pjs::Array jsRoot;
+
+        pjs::Object w1Obj;
+        w1Obj.set( "id", widgetID );
+        w1Obj.set( "color", "black" );
+        jsRoot.add( w1Obj );
+          
+        // Render response content
+        std::ostream& ostr = opData->responseSend();
+        try{ 
+            pjs::Stringifier::stringify( jsRoot, ostr, 1 ); 
+        } catch( ... ) {
+            std::cout << "ERROR: Exception while serializing comment" << std::endl;
+        }            
+        // Request was successful
+        opData->responseSetStatusAndReason( HNR_HTTP_OK );
+
     }
-    // PUT "/hnode2/irrigation/zones/{zoneid}"
-    else if( "updateZone" == opID )
+    // POST "/hnode2/test/widgets"
+    else if( "createWidget" == opID )
     {
-        std::string zoneID;
+        std::istream& rs = opData->requestBody();
+        std::string body;
+        Poco::StreamCopier::copyToString( rs, body );
+        
+        std::cout << "=== Create Widget Post Data ===" << std::endl;
+        std::cout << body << std::endl;
+
+        // Object was created return info
+        opData->responseSetCreated( "w1" );
+        opData->responseSetStatusAndReason( HNR_HTTP_CREATED );
+    }
+    // PUT "/hnode2/test/widgets/{widgetid}"
+    else if( "updateWidget" == opID )
+    {
+        std::string widgetID;
 
         // Make sure zoneid was provided
-        if( opData->getParam( "zoneid", zoneID ) == true )
+        if( opData->getParam( "widgetid", widgetID ) == true )
         {
-            // zoneid parameter is required
+            // widgetid parameter is required
             opData->responseSetStatusAndReason( HNR_HTTP_BAD_REQUEST );
             opData->responseSend();
             return; 
         }
-        action.setType( HNID_AR_TYPE_ZONEUPDATE );
-        action.setZoneID( zoneID );
+        
+        std::istream& rs = opData->requestBody();
+        std::string body;
+        Poco::StreamCopier::copyToString( rs, body );
+        
+        std::cout << "=== Update Widget Put Data (id: " << widgetID << ") ===" << std::endl;
+        std::cout << body << std::endl;
 
-        std::istream& bodyStream = opData->requestBody();
-        action.decodeZoneUpdate( bodyStream );
-    }
-    // DELETE "/hnode2/irrigation/zones/{zoneid}"
-    else if( "deleteZone" == opID )
+        // Request was successful
+        opData->responseSetStatusAndReason( HNR_HTTP_OK );
+    }    
+    // DELETE "/hnode2/test/widgets/{widgetid}"
+    else if( "deleteWidget" == opID )
     {
-        std::string zoneID;
+        std::string widgetID;
 
         // Make sure zoneid was provided
-        if( opData->getParam( "zoneid", zoneID ) == true )
+        if( opData->getParam( "widgetid", widgetID ) == true )
         {
-            // zoneid parameter is required
-            opData->responseSetStatusAndReason( HNR_HTTP_BAD_REQUEST );
-            opData->responseSend();
-            return; 
-        }
-
-        action.setType( HNID_AR_TYPE_ZONEDELETE );
-        action.setZoneID( zoneID );
-    }
-    else if( "getPlacementList" == opID )
-    {
-        action.setType( HNID_AR_TYPE_PLACELIST );
-    }
-    else if( "createPlacement" == opID )
-    {
-        action.setType( HNID_AR_TYPE_PLACECREATE );
-
-        std::istream& bodyStream = opData->requestBody();
-        action.decodePlacementUpdate( bodyStream );
-    }
-    else if( "getPlacement" == opID )
-    {
-        std::string placementID;
-
-        if( opData->getParam( "placementid", placementID ) == true )
-        {
-            opData->responseSetStatusAndReason( HNR_HTTP_INTERNAL_SERVER_ERROR );
-            opData->responseSend();
-            return; 
-        }
-
-        action.setType( HNID_AR_TYPE_PLACEINFO );
-        action.setPlacementID( placementID );
-    }
-    else if( "updatePlacement" == opID )
-    {
-        std::string placementID;
-
-        // Make sure zoneid was provided
-        if( opData->getParam( "placementid", placementID ) == true )
-        {
-            // zoneid parameter is required
+            // widgetid parameter is required
             opData->responseSetStatusAndReason( HNR_HTTP_BAD_REQUEST );
             opData->responseSend();
             return; 
         }
 
-        action.setType( HNID_AR_TYPE_PLACEUPDATE );
-        action.setPlacementID( placementID );
+        std::cout << "=== Delete Widget Request (id: " << widgetID << ") ===" << std::endl;
 
-        std::istream& bodyStream = opData->requestBody();
-        action.decodePlacementUpdate( bodyStream );
-    }
-    else if( "deletePlacement" == opID )
-    {
-        std::string placementID;
-
-        // Make sure zoneid was provided
-        if( opData->getParam( "placementid", placementID ) == true )
-        {
-            // eventid parameter is required
-            opData->responseSetStatusAndReason( HNR_HTTP_BAD_REQUEST );
-            opData->responseSend();
-            return; 
-        }
-
-        action.setType( HNID_AR_TYPE_PLACEDELETE );
-        action.setPlacementID( placementID );
-    }
-    else if( "getModifiersList" == opID )
-    {
-        action.setType( HNID_AR_TYPE_MODIFIERSLIST );
-    }
-    else if( "createModifier" == opID )
-    {
-        action.setType( HNID_AR_TYPE_MODIFIERCREATE );
-
-        std::istream& bodyStream = opData->requestBody();
-        action.decodeModifierUpdate( bodyStream );
-    }
-    else if( "getModifier" == opID )
-    {
-        std::string modifierID;
-
-        if( opData->getParam( "modifierid", modifierID ) == true )
-        {
-            opData->responseSetStatusAndReason( HNR_HTTP_INTERNAL_SERVER_ERROR );
-            opData->responseSend();
-            return; 
-        }
-
-        action.setType( HNID_AR_TYPE_MODIFIERINFO );
-        action.setModifierID( modifierID );
-    }
-    else if( "updateModifier" == opID )
-    {
-        std::string modifierID;
-
-        // Make sure zoneid was provided
-        if( opData->getParam( "modifierid", modifierID ) == true )
-        {
-            // zoneid parameter is required
-            opData->responseSetStatusAndReason( HNR_HTTP_BAD_REQUEST );
-            opData->responseSend();
-            return; 
-        }
-
-        action.setType( HNID_AR_TYPE_MODIFIERUPDATE );
-        action.setModifierID( modifierID );
-
-        std::istream& bodyStream = opData->requestBody();
-        action.decodeModifierUpdate( bodyStream );
-    }
-    else if( "deleteModifier" == opID )
-    {
-        std::string modifierID;
-
-        // Make sure zoneid was provided
-        if( opData->getParam( "modifierid", modifierID ) == true )
-        {
-            // eventid parameter is required
-            opData->responseSetStatusAndReason( HNR_HTTP_BAD_REQUEST );
-            opData->responseSend();
-            return; 
-        }
-
-        action.setType( HNID_AR_TYPE_MODIFIERDELETE );
-        action.setModifierID( modifierID );
-    }
-    else if( "getScheduleInfo" == opID )
-    {
-        action.setType( HNID_AR_TYPE_SCHINFO );
-    }
-    else if( "getSchedulerState" == opID )
-    {
-        action.setType( HNID_AR_TYPE_GETSCHSTATE );
-    }
-    else if( "setSchedulerState" == opID )
-    {
-        action.setType( HNID_AR_TYPE_SETSCHSTATE );
-
-        std::istream& bodyStream = opData->requestBody();
-        action.decodeSchedulerState( bodyStream );
-    }
-    else if( "putZoneControlRequest" == opID )
-    {
-        action.setType( HNID_AR_TYPE_ZONECTL );
-
-        std::istream& bodyStream = opData->requestBody();
-        action.decodeZoneCtrl( bodyStream );
+        // Request was successful
+        opData->responseSetStatusAndReason( HNR_HTTP_OK );
     }
     else
     {
@@ -410,67 +348,6 @@ HNTestDevice::dispatchEP( HNodeDevice *parent, HNOperationData *opData )
         opData->responseSend();
         return;
     }
-
-    std::cout << "Start Action - client: " << action.getType() << "  thread: " << std::this_thread::get_id() << std::endl;
-
-    // Submit the action and block for response
-    m_actionQueue.postAndWait( &action );
-
-    std::cout << "Finish Action - client" << "  thread: " << std::this_thread::get_id() << std::endl;
-
-    // Determine what happened
-    switch( action.getStatus() )
-    {
-        case HNRW_RESULT_SUCCESS:
-        {
-            std::string cType;
-            std::string objID;
-
-
-            // See if response content should be generated
-            if( action.hasRspContent( cType ) )
-            {
-                // Set response content type
-                opData->responseSetChunkedTransferEncoding( true );
-                opData->responseSetContentType( cType );
-
-                // Render any response content
-                std::ostream& ostr = opData->responseSend();
-            
-                if( action.generateRspContent( ostr ) == true )
-                {
-                    opData->responseSetStatusAndReason( HNR_HTTP_INTERNAL_SERVER_ERROR );
-                    opData->responseSend();
-                    return;
-                }
-            }
-
-            // Check if a new object was created.
-            if( action.hasNewObject( objID ) )
-            {
-                // Object was created return info
-                opData->responseSetCreated( objID );
-                opData->responseSetStatusAndReason( HNR_HTTP_CREATED );
-            }
-            else
-            {
-                // Request was successful
-                opData->responseSetStatusAndReason( HNR_HTTP_OK );
-            }
-        }
-        break;
-
-        case HNRW_RESULT_FAILURE:
-            opData->responseSetStatusAndReason( HNR_HTTP_INTERNAL_SERVER_ERROR );
-        break;
-
-        case HNRW_RESULT_TIMEOUT:
-#endif        
-            opData->responseSetStatusAndReason( HNR_HTTP_INTERNAL_SERVER_ERROR );
-//        break;
-#if 0
-    }
-#endif
 
     // Return to caller
     opData->responseSend();
@@ -485,9 +362,9 @@ const std::string g_HNode2TestRest = R"(
     "title": ""
   },
   "paths": {
-      "/hnode2/irrigation/status": {
+      "/hnode2/test/status": {
         "get": {
-          "summary": "Get irrigation device status.",
+          "summary": "Get test device status.",
           "operationId": "getStatus",
           "responses": {
             "200": {
@@ -507,32 +384,10 @@ const std::string g_HNode2TestRest = R"(
         }
       },
 
-      "/hnode2/irrigation/switches": {
+      "/hnode2/test/widget": {
         "get": {
-          "summary": "Get a list of controllable switches.",
-          "operationId": "getSwitchList",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "array"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-      },
-
-      "/hnode2/irrigation/zones": {
-        "get": {
-          "summary": "Get information about controlled zones.",
-          "operationId": "getZoneList",
+          "summary": "Return made up widget list.",
+          "operationId": "getWidgetList",
           "responses": {
             "200": {
               "description": "successful operation",
@@ -551,8 +406,8 @@ const std::string g_HNode2TestRest = R"(
         },
 
         "post": {
-          "summary": "Create a new zone association.",
-          "operationId": "createZone",
+          "summary": "Create a new widget - dummy.",
+          "operationId": "createWidget",
           "responses": {
             "200": {
               "description": "successful operation",
@@ -571,10 +426,10 @@ const std::string g_HNode2TestRest = R"(
         }
       },
 
-      "/hnode2/irrigation/zones/{zoneid}": {
+      "/hnode2/irrigation/widget/{widgetid}": {
         "get": {
-          "summary": "Get information about a specific zone.",
-          "operationId": "getZoneInfo",
+          "summary": "Get information about a specific widget - dummy.",
+          "operationId": "getWidgetInfo",
           "responses": {
             "200": {
               "description": "successful operation",
@@ -592,8 +447,8 @@ const std::string g_HNode2TestRest = R"(
           }
         },
         "put": {
-          "summary": "Update existing zone settings.",
-          "operationId": "updateZone",
+          "summary": "Update a specific widget - dummy.",
+          "operationId": "updateWidget",
           "responses": {
             "200": {
               "description": "successful operation",
@@ -611,300 +466,8 @@ const std::string g_HNode2TestRest = R"(
           }
         },
         "delete": {
-          "summary": "Delete an existing zone.",
-          "operationId": "deleteZone",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-      },
-
-
-      "/hnode2/irrigation/schedule": {
-        "get": {
-          "summary": "Get information about the current zone schedule.",
-          "operationId": "getScheduleInfo",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-      },
-
-      "/hnode2/irrigation/schedule/state": {
-        "get": {
-          "summary": "Get information about scheduler state.",
-          "operationId": "getSchedulerState",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        },
-        "put": {
-          "summary": "Set scheduler to a specific state.",
-          "operationId": "setSchedulerState",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-
-      },
-
-
-      "/hnode2/irrigation/placement": {
-        "get": {
-          "summary": "Get list of schedule placement.",
-          "operationId": "getPlacementList",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        },
-
-        "post": {
-          "summary": "Create a new schedule placement.",
-          "operationId": "createPlacement",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-      },
-
-      "/hnode2/irrigation/placement/{placementid}": {
-        "get": {
-          "summary": "Get information about a specific schedule placement.",
-          "operationId": "getPlacement",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        },
-        "put": {
-          "summary": "Update an existing placement.",
-          "operationId": "updatePlacement",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        },
-        "delete": {
-          "summary": "Delete an existing placement.",
-          "operationId": "deletePlacement",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-      },
-
-      "/hnode2/irrigation/modifier": {
-        "get": {
-          "summary": "Get list of zone modifiers.",
-          "operationId": "getModifiersList",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        },
-
-        "post": {
-          "summary": "Create a new zone modifier.",
-          "operationId": "createModifier",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-      },
-
-      "/hnode2/irrigation/modifier/{modifierid}": {
-        "get": {
-          "summary": "Get information about a specific zone modifier.",
-          "operationId": "getModifier",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        },
-        "put": {
-          "summary": "Update an existing modifier.",
-          "operationId": "updateModifier",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        },
-        "delete": {
-          "summary": "Delete an existing modifier.",
-          "operationId": "deleteModifier",
-          "responses": {
-            "200": {
-              "description": "successful operation",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object"
-                  }
-                }
-              }
-            },
-            "400": {
-              "description": "Invalid status value"
-            }
-          }
-        }
-      },
-
-      "/hnode2/irrigation/zonectl": {
-        "put": {
-          "summary": "Send manual control request for one or more zones.",
-          "operationId": "putZoneControlRequest",
+          "summary": "Delete a specific widget - dummy",
+          "operationId": "deleteWidget",
           "responses": {
             "200": {
               "description": "successful operation",
