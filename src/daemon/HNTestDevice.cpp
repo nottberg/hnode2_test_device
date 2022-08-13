@@ -16,7 +16,6 @@
 #include <Poco/StreamCopier.h>
 
 #include <hnode2/HNodeDevice.h>
-#include <hnode2/HNSwitchDaemon.h>
 
 #include "HNTestDevicePrivate.h"
 
@@ -86,6 +85,8 @@ HNTestDevice::main( const std::vector<std::string>& args )
 
     m_hnodeDev.addEndpoint( hndEP );
 
+    m_hnodeDev.setPort(8088);
+
     std::cout << "Looking for config file" << std::endl;
     
     if( configExists() == false )
@@ -95,6 +96,20 @@ HNTestDevice::main( const std::vector<std::string>& args )
 
     readConfig();
 
+    // Register some format strings
+    m_hnodeDev.registerFormatString( "Error: %u", m_errStrCode );
+    m_hnodeDev.registerFormatString( "This is a test note.", m_noteStrCode );
+
+    // Enable the health monitoring and add some fake components
+    m_hnodeDev.enableHealthMonitoring();
+
+    m_hnodeDev.getHealthRef().registerComponent( "test device hc1", HNDH_ROOT_COMPID, m_hc1ID );
+    m_hnodeDev.getHealthRef().registerComponent( "test device hc2", HNDH_ROOT_COMPID, m_hc2ID );
+    m_hnodeDev.getHealthRef().registerComponent( "test device hc2.1", m_hc2ID, m_hc3ID );
+
+    m_healthStateSeq = 0;
+    generateNewHealthState();
+
     // Start up the hnode device
     m_hnodeDev.start();
 
@@ -102,6 +117,70 @@ HNTestDevice::main( const std::vector<std::string>& args )
 
     return Application::EXIT_OK;
 }
+
+void
+HNTestDevice::generateNewHealthState()
+{
+    m_hnodeDev.getHealthRef().startUpdateCycle( time(NULL) );
+
+    switch( m_healthStateSeq )
+    {
+        case 0:
+          m_hnodeDev.getHealthRef().setComponentStatus( HNDH_ROOT_COMPID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc1ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc2ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc3ID, HNDH_CSTAT_OK );
+        break;
+
+        case 1:
+          m_hnodeDev.getHealthRef().setComponentStatus( HNDH_ROOT_COMPID, HNDH_CSTAT_OK );
+
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc1ID, HNDH_CSTAT_FAILED );
+          m_hnodeDev.getHealthRef().setComponentErrMsg( m_hc1ID, 200, m_errStrCode, 200 );
+          
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc2ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc3ID, HNDH_CSTAT_OK );
+        break;
+
+        case 2:
+          m_hnodeDev.getHealthRef().setComponentStatus( HNDH_ROOT_COMPID, HNDH_CSTAT_OK );
+
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc1ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().clearComponentErrMsg( m_hc1ID );
+
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc2ID, HNDH_CSTAT_OK );
+
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc3ID, HNDH_CSTAT_FAILED );
+          m_hnodeDev.getHealthRef().setComponentErrMsg( m_hc3ID, 400, m_errStrCode, 400 );
+        break;
+
+        case 3:
+          m_hnodeDev.getHealthRef().setComponentStatus( HNDH_ROOT_COMPID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc1ID, HNDH_CSTAT_OK );
+
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc2ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentNote( m_hc2ID, m_noteStrCode );
+
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc3ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().clearComponentErrMsg( m_hc3ID );
+        break;
+
+        case 4:
+          m_hnodeDev.getHealthRef().setComponentStatus( HNDH_ROOT_COMPID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc1ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc2ID, HNDH_CSTAT_OK );
+          m_hnodeDev.getHealthRef().clearComponentNote( m_hc2ID );
+          m_hnodeDev.getHealthRef().setComponentStatus( m_hc3ID, HNDH_CSTAT_OK );
+        break;
+    }
+
+    // Advance to next simulated health state.
+    m_healthStateSeq += 1;
+    if( m_healthStateSeq > 4 )
+      m_healthStateSeq = 0;
+
+    bool changed = m_hnodeDev.getHealthRef().completeUpdateCycle();
+} 
 
 bool 
 HNTestDevice::configExists()
@@ -206,6 +285,9 @@ HNTestDevice::dispatchEP( HNodeDevice *parent, HNOperationData *opData )
             std::cout << "ERROR: Exception while serializing comment" << std::endl;
         }
             
+        // Simulate health state changes with each request
+        generateNewHealthState();
+
         // Request was successful
         opData->responseSetStatusAndReason( HNR_HTTP_OK );
     }

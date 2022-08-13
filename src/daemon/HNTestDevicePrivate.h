@@ -34,12 +34,26 @@ class HNTestDevice : public Poco::Util::ServerApplication, public HNDEPDispatchI
 
         HNodeDevice m_hnodeDev;
 
+        // Format string codes
+        uint m_errStrCode;
+        uint m_noteStrCode;
+
+        // Health component ids
+        std::string m_hc1ID;
+        std::string m_hc2ID;
+        std::string m_hc3ID;
+
+        // Keep track of health state change simulation
+        uint m_healthStateSeq;
+
         void displayHelp();
 
         bool configExists();
         HNTD_RESULT_T initConfig();
         HNTD_RESULT_T readConfig();
         HNTD_RESULT_T updateConfig();
+
+        void generateNewHealthState();
 
     protected:
         // HNDevice REST callback
