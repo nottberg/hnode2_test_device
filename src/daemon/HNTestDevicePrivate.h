@@ -22,7 +22,7 @@ typedef enum HNTestDeviceResultEnum
   HNTD_RESULT_SERVER_ERROR
 }HNTD_RESULT_T;
 
-class HNTestDevice : public Poco::Util::ServerApplication, public HNDEPDispatchInf //, public HNEPLoopCallbacks
+class HNTestDevice : public Poco::Util::ServerApplication, public HNDEPDispatchInf, public HNDEventNotifyInf, public HNEPLoopCallbacks 
 {
     private:
         bool _helpRequested   = false;
@@ -33,6 +33,10 @@ class HNTestDevice : public Poco::Util::ServerApplication, public HNDEPDispatchI
         std::string m_instanceName;
 
         HNodeDevice m_hnodeDev;
+
+        HNEPTrigger m_configUpdateTrigger;
+
+        HNEPLoop m_testDeviceEvLoop;
 
         // Format string codes
         uint m_errStrCode;
@@ -59,10 +63,20 @@ class HNTestDevice : public Poco::Util::ServerApplication, public HNDEPDispatchI
         // HNDevice REST callback
         virtual void dispatchEP( HNodeDevice *parent, HNOperationData *opData );
 
+        // Notification for hnode device config changes.
+        virtual void hndnConfigChange( HNodeDevice *parent );
+
+        // Event loop functions
+        virtual void loopIteration();
+        virtual void timeoutEvent();
+        virtual void fdEvent( int sfd );
+        virtual void fdError( int sfd );
+
         // Poco funcions
         void defineOptions( Poco::Util::OptionSet& options );
         void handleOption( const std::string& name, const std::string& value );
         int main( const std::vector<std::string>& args );
+
 
 };
 

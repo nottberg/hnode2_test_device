@@ -96,6 +96,11 @@ HNTestDevice::main( const std::vector<std::string>& args )
 
     readConfig();
 
+    // Setup the event loop
+    m_testDeviceEvLoop.setup( this );
+
+    m_testDeviceEvLoop.setupTriggerFD( m_configUpdateTrigger );
+
     // Register some format strings
     m_hnodeDev.registerFormatString( "Error: %u", m_errStrCode );
     m_hnodeDev.registerFormatString( "This is a test note.", m_noteStrCode );
@@ -110,8 +115,14 @@ HNTestDevice::main( const std::vector<std::string>& args )
     m_healthStateSeq = 0;
     generateNewHealthState();
 
+    // Start accepting device notifications
+    m_hnodeDev.setNotifySink( this );
+
     // Start up the hnode device
     m_hnodeDev.start();
+
+    // Start event processing loop
+    m_testDeviceEvLoop.run();
 
     waitForTerminationRequest();
 
@@ -241,6 +252,8 @@ HNTestDevice::updateConfig()
     HNodeConfigFile cfgFile;
     HNodeConfig     cfg;
 
+    m_hnodeDev.updateConfigSections( cfg );
+
     cfg.debugPrint(2);
     
     std::cout << "Saving config..." << std::endl;
@@ -252,6 +265,47 @@ HNTestDevice::updateConfig()
     std::cout << "Config saved" << std::endl;
 
     return HNTD_RESULT_SUCCESS;
+}
+
+void
+HNTestDevice::loopIteration()
+{
+    // std::cout << "HNManagementDevice::loopIteration() - entry" << std::endl;
+
+}
+
+void
+HNTestDevice::timeoutEvent()
+{
+    // std::cout << "HNManagementDevice::timeoutEvent() - entry" << std::endl;
+
+}
+
+void
+HNTestDevice::fdEvent( int sfd )
+{
+    std::cout << "HNManagementDevice::fdEvent() - entry: " << sfd << std::endl;
+
+    if( m_configUpdateTrigger.isMatch( sfd ) )
+    {
+        std::cout << "m_configUpdateTrigger - updating config" << std::endl;
+        m_configUpdateTrigger.reset();
+        updateConfig();
+    }
+}
+
+void
+HNTestDevice::fdError( int sfd )
+{
+    std::cout << "HNManagementDevice::fdError() - entry: " << sfd << std::endl;
+
+}
+
+void
+HNTestDevice::hndnConfigChange( HNodeDevice *parent )
+{
+    std::cout << "HNManagementDevice::hndnConfigChange() - entry" << std::endl;
+    m_configUpdateTrigger.trigger();
 }
 
 void 
