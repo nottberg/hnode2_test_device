@@ -85,7 +85,7 @@ HNTestDevice::main( const std::vector<std::string>& args )
 
     m_hnodeDev.addEndpoint( hndEP );
 
-    m_hnodeDev.setPort(8088);
+    m_hnodeDev.setRestPort(8088);
 
     std::cout << "Looking for config file" << std::endl;
     
