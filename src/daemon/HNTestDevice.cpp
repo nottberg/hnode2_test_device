@@ -338,9 +338,6 @@ HNTestDevice::dispatchEP( HNodeDevice *parent, HNOperationData *opData )
         } catch( ... ) {
             std::cout << "ERROR: Exception while serializing comment" << std::endl;
         }
-            
-        // Simulate health state changes with each request
-        generateNewHealthState();
 
         // Request was successful
         opData->responseSetStatusAndReason( HNR_HTTP_OK );
@@ -477,6 +474,72 @@ HNTestDevice::dispatchEP( HNodeDevice *parent, HNOperationData *opData )
         // Request was successful
         opData->responseSetStatusAndReason( HNR_HTTP_OK );
     }
+    // PUT "/hnode2/test/health"
+    else if( "putTestHealth" == opID )
+    {
+        // Get access to payload
+        std::istream& rs = opData->requestBody();
+
+        // Parse the json body of the request
+        try
+        {
+            std::string component = HNDH_ROOT_COMPID;
+            std::string status = "OK";
+            uint errCode = 200;
+
+            // Attempt to parse the json
+            pjs::Parser parser;
+            pdy::Var varRoot = parser.parse( rs );
+
+            // Get a pointer to the root object
+            pjs::Object::Ptr jsRoot = varRoot.extract< pjs::Object::Ptr >();
+
+            if( jsRoot->has( "component" ) )
+                component = jsRoot->getValue<std::string>( "component" );
+
+            if( jsRoot->has( "status" ) )
+                status = jsRoot->getValue<std::string>( "status" );
+
+            if( jsRoot->has( "errCode" ) )
+                errCode = jsRoot->getValue<uint>( "errCode" );
+
+            m_hnodeDev.getHealthRef().startUpdateCycle( time(NULL) );
+
+            if( status == "OK" )
+            {
+                m_hnodeDev.getHealthRef().setComponentStatus( component, HNDH_CSTAT_OK );
+                m_hnodeDev.getHealthRef().clearComponentErrMsg( component );
+                m_hnodeDev.getHealthRef().clearComponentNote( component );
+            }
+            else if( status == "UNKNOWN" )
+            {
+                m_hnodeDev.getHealthRef().setComponentStatus( component, HNDH_CSTAT_UNKNOWN );
+                m_hnodeDev.getHealthRef().clearComponentErrMsg( component );
+            }
+            else if( status == "FAILED" )
+            {
+                m_hnodeDev.getHealthRef().setComponentStatus( component, HNDH_CSTAT_FAILED );
+                m_hnodeDev.getHealthRef().setComponentErrMsg( component, errCode, m_errStrCode, errCode );
+            }
+            else if( status == "NOTE" )
+            {
+                m_hnodeDev.getHealthRef().setComponentNote( component, m_noteStrCode );
+            }
+
+            m_hnodeDev.getHealthRef().completeUpdateCycle();
+
+        }
+        catch( Poco::Exception ex )
+        {
+            std::cout << "putTestHealth exception: " << ex.displayText() << std::endl;
+            opData->responseSetStatusAndReason( HNR_HTTP_INTERNAL_SERVER_ERROR );
+            opData->responseSend();
+            return;
+        }
+
+        // Request was successful
+        opData->responseSetStatusAndReason( HNR_HTTP_OK );
+    }        
     else
     {
         // Send back not implemented
@@ -611,6 +674,28 @@ const std::string g_HNode2TestRest = R"(
                 "application/json": {
                   "schema": {
                     "type": "object"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid status value"
+            }
+          }
+        }
+      },
+
+      "/hnode2/test/health": {
+        "put": {
+          "summary": "Cause a health state transistion",
+          "operationId": "putTestHealth",
+          "responses": {
+            "200": {
+              "description": "successful operation",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array"
                   }
                 }
               }
